@@ -2,11 +2,13 @@
   "use strict";
 
   const STORE_KEY = "tableThymeDemo_v1";
+  const PREFERENCES_KEY = "tableThymePreferences_v1";
   const ADMIN_AUTH_KEY = "tableThymeAdminAuthenticated";
   const ADMIN_USERNAME = "amadmin";
   const ADMIN_PASSWORD = "amadmin27";
   const UPI_ID = "estaurant@okaxis";
   const TAX_RATE = 0.05;
+  const THEME_PRESETS = { orange: "#ff7a00", ocean: "#168aad", forest: "#31845b", rose: "#c34f73", violet: "#7452bd" };
   const CATEGORIES = ["All", "Starters", "Main Course", "Indian Food", "Chinese", "Pizza", "Burgers", "Beverages", "Desserts", "Special Offers"];
   const image = (id, w) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w || 700}&q=80`;
   const isAdminPage = /(?:^|\/)admin\.html$/i.test(location.pathname);
@@ -31,6 +33,7 @@
     discount: 0
   };
   let state = loadState();
+  let preferences = loadPreferences();
   let page = isAdminPage ? (isAdminAuthenticated() ? "dashboard" : "admin-login") : "menu";
   let category = "All";
   let search = "";
@@ -51,6 +54,40 @@
       console.error("Could not load saved restaurant data.", error);
       return structuredClone(seed);
     }
+  }
+  function loadPreferences() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(PREFERENCES_KEY));
+      const preset = saved && (saved.preset === "custom" || Object.prototype.hasOwnProperty.call(THEME_PRESETS, saved.preset)) ? saved.preset : "orange";
+      const accent = preset === "custom" && /^#[\da-f]{6}$/i.test(saved.accent || "") ? saved.accent : THEME_PRESETS[preset] || THEME_PRESETS.orange;
+      return { mode: saved && saved.mode === "dark" ? "dark" : "light", preset, accent };
+    } catch (error) {
+      console.error("Could not load appearance preferences.", error);
+      return { mode: "light", preset: "orange", accent: THEME_PRESETS.orange };
+    }
+  }
+  function savePreferences(value) {
+    try {
+      localStorage.setItem(PREFERENCES_KEY, JSON.stringify(value));
+      return true;
+    } catch (error) {
+      console.error("Could not save appearance preferences.", error);
+      toast("Could not save your theme preference. Check browser storage.", true);
+      return false;
+    }
+  }
+  function applyPreferences(value) {
+    const root = document.documentElement;
+    const accent = /^#[\da-f]{6}$/i.test(value.accent) ? value.accent : THEME_PRESETS.orange;
+    const rawChannels = [1, 3, 5].map(index => parseInt(accent.slice(index, index + 2), 16));
+    const channels = rawChannels.map(channel => channel / 255);
+    const luminance = channels.map(channel => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+    const contrast = 0.2126 * luminance[0] + 0.7152 * luminance[1] + 0.0722 * luminance[2] > 0.179 ? "#242321" : "#ffffff";
+    const darkerAccent = `#${rawChannels.map(channel => Math.round(channel * 0.86).toString(16).padStart(2, "0")).join("")}`;
+    root.dataset.colorScheme = value.mode === "dark" ? "dark" : "light";
+    root.style.setProperty("--orange", accent);
+    root.style.setProperty("--orange-dark", darkerAccent);
+    root.style.setProperty("--accent-contrast", contrast);
   }
   function save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
@@ -210,6 +247,35 @@
     byId("modal-root").innerHTML = "";
     document.removeEventListener("keydown", escapeModal);
     if (modalCleanup) { modalCleanup(); modalCleanup = null; }
+  }
+  function openThemeSettings() {
+    const presetOptions = Object.entries(THEME_PRESETS).map(([name]) => `<option value="${name}" ${preferences.preset === name ? "selected" : ""}>${name.charAt(0).toUpperCase() + name.slice(1)}</option>`).join("");
+    const body = `<form id="theme-settings-form">
+      <div class="field"><label>Color mode</label><div class="radio-options"><label class="radio-card"><input type="radio" name="mode" value="light" ${preferences.mode === "light" ? "checked" : ""}><span>Light<small>Bright background and dark text.</small></span></label><label class="radio-card"><input type="radio" name="mode" value="dark" ${preferences.mode === "dark" ? "checked" : ""}><span>Dark<small>Dark background and light text.</small></span></label></div></div>
+      <div class="field"><label for="theme-preset">Accent theme</label><select id="theme-preset" name="preset"><option value="custom" ${preferences.preset === "custom" ? "selected" : ""}>Custom</option>${presetOptions}</select></div>
+      <div class="field"><label for="theme-accent">Custom accent color</label><input id="theme-accent" type="color" value="${preferences.accent}"><small class="muted">Choosing a color selects the Custom theme.</small></div>
+      <button class="btn btn-primary btn-block" type="submit">Save theme preferences</button>
+    </form>`;
+    openModal("Appearance settings", body, modal => {
+      const form = modal.querySelector("#theme-settings-form");
+      const preset = modal.querySelector("#theme-preset");
+      modal.querySelector("#theme-accent").addEventListener("input", () => { preset.value = "custom"; });
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+        const selectedPreset = preset.value;
+        const next = {
+          mode: form.querySelector('[name="mode"]:checked').value,
+          preset: selectedPreset,
+          accent: selectedPreset === "custom" ? modal.querySelector("#theme-accent").value : THEME_PRESETS[selectedPreset]
+        };
+        if (!savePreferences(next)) return;
+        preferences = next;
+        applyPreferences(preferences);
+        closeModal();
+        toast("Theme preferences saved.");
+      });
+    });
   }
   function paymentModal(orderId) {
     const order = state.orders.find(o => o.id === orderId);
@@ -375,6 +441,7 @@
     }
     if (target.dataset.page) { navigate(target.dataset.page); return; }
     if (target.dataset.adminPage) { navigate(target.dataset.adminPage); return; }
+    if (target.hasAttribute("data-theme-settings")) { openThemeSettings(); return; }
     if (target.dataset.payOrder) { paymentModal(target.dataset.payOrder); return; }
     if (target.hasAttribute("data-scroll-menu")) { document.querySelector(".category-row")?.scrollIntoView({ behavior: "smooth" }); return; }
     if (target.dataset.category) { category = target.dataset.category; render(); return; }
@@ -436,6 +503,10 @@
   });
   window.addEventListener("hashchange", () => { const next = location.hash.slice(1); if (next && next !== page) navigate(next, false); });
   window.addEventListener("storage", event => {
+    if (event.key === PREFERENCES_KEY || event.key === null) {
+      preferences = loadPreferences();
+      applyPreferences(preferences);
+    }
     if (event.key !== STORE_KEY && event.key !== null) return;
     state = loadState();
     window.TableThyme.state = state;
@@ -450,6 +521,7 @@
   const params = new URLSearchParams(location.search);
   const qrTable = params.get("table");
   if (qrTable && getTable(Number(qrTable))) state.restaurant.tableId = Number(qrTable);
+  applyPreferences(preferences);
   save();
   render();
 })();

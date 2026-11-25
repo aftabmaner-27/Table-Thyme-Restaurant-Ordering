@@ -19,6 +19,7 @@ The app loads QR-generation and QR-scanning libraries from public CDNs. QR camer
 - Cart quantity and customization editing, GST, and the `THYME10` demo discount.
 - Checkout with table selection; once served, guests can pay by UPI QR, card or cash.
 - Prices and bills are displayed in Indian rupees (INR). The UPI QR uses the `UPI_ID` value in `js/app.js`; verify it before use. The app cannot verify transfers, and card/cash payments must be confirmed only after staff receives them.
+- Appearance settings let guests and staff choose light or dark mode, a preset accent color, or a custom color. Preferences are saved in the browser and shared across the customer and admin pages on the same origin.
 - Order tracking with simulated status progression; admin can update statuses immediately.
 - Admin overview, table CRUD and QR print view, menu CRUD, order handling, billing and table release.
 - Sample menu, restaurant tables and all order/table data persist in LocalStorage and update across open customer/admin tabs in the same browser.
