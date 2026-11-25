@@ -1,6 +1,6 @@
 # Table & Thyme — restaurant ordering demo
 
-A mobile-first restaurant ordering and management demo built with HTML, CSS and vanilla JavaScript. Data is saved in browser LocalStorage; no backend or real payment processing is involved.
+A mobile-first restaurant ordering and management demo built with HTML, CSS and vanilla JavaScript. Data is saved in browser LocalStorage; there is no backend or payment verification.
 
 ## Run in Visual Studio Code
 
@@ -17,7 +17,8 @@ The app loads QR-generation and QR-scanning libraries from public CDNs. QR camer
 
 - Customer menu with categories, search, item options, extras, spice level and notes.
 - Cart quantity and customization editing, GST, and the `THYME10` demo discount.
-- Checkout with table selection and demo payment methods.
+- Checkout with table selection; once served, guests can pay by UPI QR, card or cash.
+- Prices and bills are displayed in Indian rupees (INR). The UPI QR uses the `UPI_ID` value in `js/app.js`; verify it before use. The app cannot verify transfers, and card/cash payments must be confirmed only after staff receives them.
 - Order tracking with simulated status progression; admin can update statuses immediately.
 - Admin overview, table CRUD and QR print view, menu CRUD, order handling, billing and table release.
 - Sample menu, restaurant tables and all order/table data persist in LocalStorage and update across open customer/admin tabs in the same browser.

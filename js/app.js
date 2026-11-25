@@ -5,6 +5,7 @@
   const ADMIN_AUTH_KEY = "tableThymeAdminAuthenticated";
   const ADMIN_USERNAME = "amadmin";
   const ADMIN_PASSWORD = "amadmin27";
+  const UPI_ID = "estaurant@okaxis";
   const TAX_RATE = 0.05;
   const CATEGORIES = ["All", "Starters", "Main Course", "Indian Food", "Chinese", "Pizza", "Burgers", "Beverages", "Desserts", "Special Offers"];
   const image = (id, w) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w || 700}&q=80`;
@@ -55,7 +56,7 @@
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
     catch (error) { console.error("Could not save restaurant data.", error); toast("Could not save your changes. Check browser storage.", true); }
   }
-  const money = n => `$${Number(n || 0).toFixed(2)}`;
+  const money = n => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(n || 0));
   const esc = value => String(value == null ? "" : value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const safeImage = src => esc(src || image("photo-1547592180-85f173990554"));
   const byId = id => document.getElementById(id);
@@ -139,8 +140,7 @@
   }
   function renderCheckout() {
     if (!state.cart.length) return `<section class="card empty-state"><h2>Nothing to check out yet</h2><button class="btn btn-primary" data-page="menu">Browse menu</button></section>`;
-    const table = currentTable();
-    return `<div class="section-heading"><div><span class="eyebrow">Almost there</span><h1 style="font-size:35px">Checkout</h1><p>Review your details and send your order to the kitchen.</p></div></div><form id="checkout-form" class="columns"><section class="card panel"><h2 class="section-title" style="margin-bottom:18px">Your details</h2><div class="field-grid"><div class="field"><label for="customer-name">Your name *</label><input id="customer-name" name="name" required minlength="2" value="${esc(state.customer.name)}" placeholder="e.g. Alex Morgan"></div><div class="field"><label for="customer-phone">Mobile number *</label><input id="customer-phone" name="phone" required pattern="[\\d \\+\\(\\)\\-]{7,18}" value="${esc(state.customer.phone)}" placeholder="+1 555 010 1234"></div></div><div class="field"><label for="table-select">Table number *</label><select id="table-select" name="tableId" required>${state.tables.map(t => `<option value="${t.id}" ${t.id === Number(state.restaurant.tableId) ? "selected" : ""}>Table ${esc(t.name)} · ${t.seats} seats</option>`).join("")}</select></div><div class="field"><label for="order-notes">Anything else for the kitchen?</label><textarea id="order-notes" name="notes" placeholder="Allergies, special requests..."></textarea></div><div class="field"><label>Payment method</label><div class="radio-options"><label class="radio-card"><input type="radio" name="payment" value="Pay at Table" checked><span>Pay at Table<small>We’ll bring the bill when you’re ready.</small></span></label><label class="radio-card"><input type="radio" name="payment" value="Cash at Counter"><span>Cash at Counter<small>Settle your bill at the counter.</small></span></label><label class="radio-card"><input type="radio" name="payment" value="Online Payment"><span>Online payment<small>Demo only — no real payment will be taken.</small></span></label></div></div></section><aside class="card panel"><h3>Order summary</h3>${state.cart.map(i => `<div class="summary-row"><span>${i.quantity} × ${esc(i.name)}</span><strong>${money(lineTotal(i))}</strong></div>`).join("")}<div style="border-top:1px solid var(--line);margin:14px 0">${renderTotals()}</div><button class="btn btn-primary btn-block" type="submit">Place order · ${money(cartTotal())}</button><p class="muted small" style="text-align:center;margin:12px 0 0">By placing your order you agree to our house rules.</p></aside></form>`;
+    return `<div class="section-heading"><div><span class="eyebrow">Almost there</span><h1 style="font-size:35px">Checkout</h1><p>Review your details and send your order to the kitchen.</p></div></div><form id="checkout-form" class="columns"><section class="card panel"><h2 class="section-title" style="margin-bottom:18px">Your details</h2><div class="field-grid"><div class="field"><label for="customer-name">Your name *</label><input id="customer-name" name="name" required minlength="2" value="${esc(state.customer.name)}" placeholder="e.g. Alex Morgan"></div><div class="field"><label for="customer-phone">Mobile number *</label><input id="customer-phone" name="phone" required pattern="[\\d \\+\\(\\)\\-]{7,18}" value="${esc(state.customer.phone)}" placeholder="+91 98765 43210"></div></div><div class="field"><label for="table-select">Table number *</label><select id="table-select" name="tableId" required>${state.tables.map(t => `<option value="${t.id}" ${t.id === Number(state.restaurant.tableId) ? "selected" : ""}>Table ${esc(t.name)} · ${t.seats} seats</option>`).join("")}</select></div><div class="field"><label for="order-notes">Anything else for the kitchen?</label><textarea id="order-notes" name="notes" placeholder="Allergies, special requests..."></textarea></div><p class="muted small">You can pay after your order has been served.</p></section><aside class="card panel"><h3>Order summary</h3>${state.cart.map(i => `<div class="summary-row"><span>${i.quantity} × ${esc(i.name)}</span><strong>${money(lineTotal(i))}</strong></div>`).join("")}<div style="border-top:1px solid var(--line);margin:14px 0">${renderTotals()}</div><button class="btn btn-primary btn-block" type="submit">Place order · ${money(cartTotal())}</button><p class="muted small" style="text-align:center;margin:12px 0 0">By placing your order you agree to our house rules.</p></aside></form>`;
   }
   function renderTracking(orderId) {
     const order = orderId ? state.orders.find(o => o.id === orderId) : state.orders.slice().reverse().find(o => o.customer.phone === state.customer.phone) || state.orders[state.orders.length - 1];
@@ -148,10 +148,16 @@
     const statuses = ["Order Placed", "Order Accepted", "Preparing", "Ready to Serve", "Served"];
     const current = Math.max(0, statuses.indexOf(order.status));
     const active = order.status !== "Rejected";
-    return `<div class="tracking-layout"><div class="order-banner"><span class="eyebrow" style="color:#fff">Thanks for ordering with us</span><h2>We’re on it, ${esc(order.customer.name)}!</h2><div class="muted">Order <strong>#${esc(order.number)}</strong> · Table ${esc(order.tableName)} · ${new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div></div><section class="card panel" style="margin-bottom:18px"><div class="section-heading"><div><span class="eyebrow">Live order updates</span><h2 class="section-title">${order.status === "Rejected" ? "Order couldn't be accepted" : esc(order.status)}</h2></div><span class="${statusClass(order.status)}">${esc(order.status)}</span></div>${order.status === "Rejected" ? `<div class="inline-note">Please speak to a member of our team for assistance.</div>` : `<div class="tracking-steps">${statuses.map((s, i) => `<div class="step ${active && i < current ? "done" : ""} ${active && i === current ? "current" : ""}"><div class="step-dot">${i < current ? "✓" : i + 1}</div>${s.replace("Order ", "")}</div>`).join("")}</div>`}<p class="muted small">${order.status === "Served" ? "Enjoy your meal!" : `Estimated preparation time: ${order.estimate} minutes. We’ll update your status as your meal progresses.`}</p></section><section class="card panel"><h3>Order summary</h3>${order.items.map(i => `<div class="summary-row"><span>${i.quantity} × ${esc(i.name)} <small class="muted">${i.extras.length ? ` · ${i.extras.map(x => esc(x.name)).join(", ")}` : ""}</small></span><strong>${money(lineTotal(i))}</strong></div>`).join("")}<div style="border-top:1px solid var(--line);margin-top:12px">${renderTotals(order)}</div></section><div style="text-align:center;margin-top:20px"><button class="btn btn-plain" data-page="menu">Order something else</button></div></div>`;
+    return `<div class="tracking-layout">
+      <div class="order-banner"><span class="eyebrow" style="color:#fff">Thanks for ordering with us</span><h2>We’re on it, ${esc(order.customer.name)}!</h2><div class="muted">Order <strong>#${esc(order.number)}</strong> · Table ${esc(order.tableName)} · ${new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div></div>
+      <section class="card panel" style="margin-bottom:18px"><div class="section-heading"><div><span class="eyebrow">Live order updates</span><h2 class="section-title">${order.status === "Rejected" ? "Order couldn't be accepted" : esc(order.status)}</h2></div><span class="${statusClass(order.status)}">${esc(order.status)}</span></div>${order.status === "Rejected" ? `<div class="inline-note">Please speak to a member of our team for assistance.</div>` : `<div class="tracking-steps">${statuses.map((s, i) => `<div class="step ${active && i < current ? "done" : ""} ${active && i === current ? "current" : ""}"><div class="step-dot">${i < current ? "✓" : i + 1}</div>${s.replace("Order ", "")}</div>`).join("")}</div>`}<p class="muted small">${order.status === "Served" ? "Enjoy your meal!" : `Estimated preparation time: ${order.estimate} minutes. We’ll update your status as your meal progresses.`}</p></section>
+      <section class="card panel" style="margin-bottom:18px"><h3>Payment</h3>${order.paymentStatus === "Paid" ? `<p class="muted">Payment received${order.payment ? ` · ${esc(order.payment)}` : ""}.</p>` : order.status === "Served" ? `<p class="muted">Your order is served. Choose how you’d like to pay.</p><button class="btn btn-primary" data-pay-order="${esc(order.id)}">Pay ${money(order.total)}</button>` : `<p class="muted small">Payment options will be available once your order has been served.</p>`}</section>
+      <section class="card panel"><h3>Order summary</h3>${order.items.map(i => `<div class="summary-row"><span>${i.quantity} × ${esc(i.name)} <small class="muted">${i.extras.length ? ` · ${i.extras.map(x => esc(x.name)).join(", ")}` : ""}</small></span><strong>${money(lineTotal(i))}</strong></div>`).join("")}<div style="border-top:1px solid var(--line);margin-top:12px">${renderTotals(order)}</div></section>
+      <div style="text-align:center;margin-top:20px"><button class="btn btn-plain" data-page="menu">Order something else</button></div>
+    </div>`;
   }
 
-  const ADMIN_LINKS = [{ id: "dashboard", icon: "⌂", name: "Overview" }, { id: "orders", icon: "▤", name: "Orders" }, { id: "tables", icon: "▦", name: "Tables & QR" }, { id: "menu-admin", icon: "☷", name: "Menu" }, { id: "billing", icon: "$", name: "Billing" }];
+  const ADMIN_LINKS = [{ id: "dashboard", icon: "⌂", name: "Overview" }, { id: "orders", icon: "▤", name: "Orders" }, { id: "tables", icon: "▦", name: "Tables & QR" }, { id: "menu-admin", icon: "☷", name: "Menu" }, { id: "billing", icon: "₹", name: "Billing" }];
   function renderAdmin() {
     const title = ADMIN_LINKS.find(x => x.id === page)?.name || "Overview";
     return `<div class="admin-layout"><aside class="card admin-sidebar"><div class="sidebar-label">RESTAURANT</div>${ADMIN_LINKS.map(x => `<button class="sidebar-link ${page === x.id ? "active" : ""}" data-admin-page="${x.id}"><span class="side-icon">${x.icon}</span>${x.name}</button>`).join("")}<div class="sidebar-label" style="margin-top:10px">CUSTOMER VIEW</div>${isAdminPage ? `<a class="sidebar-link" href="index.html"><span class="side-icon">↗</span>Open menu</a>` : `<button class="sidebar-link" data-page="menu"><span class="side-icon">↗</span>Open menu</button>`}</aside><section><div class="admin-header"><div><span class="eyebrow">Table & Thyme / Admin</span><h1>${title}</h1><p>${page === "dashboard" ? "Here’s what’s happening at your restaurant today." : `Manage your restaurant ${title.toLowerCase()}.`}</p></div>${page === "tables" ? `<button class="btn btn-primary" data-add-table>＋ Add table</button>` : page === "menu-admin" ? `<button class="btn btn-primary" data-add-menu>＋ Add item</button>` : ""}</div>${page === "dashboard" ? renderDashboard() : page === "tables" ? renderTables() : page === "menu-admin" ? renderMenuAdmin() : page === "orders" ? renderOrders() : renderBilling()}</section></div>`;
@@ -159,10 +165,10 @@
   function renderDashboard() {
     const today = new Date().toDateString();
     const todayOrders = state.orders.filter(o => new Date(o.createdAt).toDateString() === today);
-    const revenue = todayOrders.filter(o => o.paymentStatus === "Paid" || o.status === "Served").reduce((n, o) => n + o.total, 0);
+    const revenue = todayOrders.filter(o => o.paymentStatus === "Paid").reduce((n, o) => n + o.total, 0);
     const occupied = state.tables.filter(t => t.status === "Occupied").length;
     const pending = state.orders.filter(o => ["Order Placed", "Order Accepted", "Preparing"].includes(o.status)).length;
-    const stats = [["Total tables", state.tables.length, "▦", "Restaurant floor"], ["Available", state.tables.filter(t => t.status === "Available").length, "✓", "Ready for guests"], ["Occupied", occupied, "♙", "Currently dining"], ["Total orders", state.orders.length, "▤", "All time"], ["Pending orders", pending, "◷", "Need attention"], ["Today's revenue", money(revenue), "$", "Paid / served today"]];
+    const stats = [["Total tables", state.tables.length, "▦", "Restaurant floor"], ["Available", state.tables.filter(t => t.status === "Available").length, "✓", "Ready for guests"], ["Occupied", occupied, "♙", "Currently dining"], ["Total orders", state.orders.length, "▤", "All time"], ["Pending orders", pending, "◷", "Need attention"], ["Today's revenue", money(revenue), "₹", "Paid today"]];
     const recent = state.orders.slice().reverse().slice(0, 5);
     const popular = state.menu.map(m => ({ menu: m, count: state.orders.flatMap(o => o.items).filter(i => i.menuId === m.id).reduce((n, i) => n + i.quantity, 0) })).sort((a, b) => b.count - a.count).slice(0, 4);
     return `<div class="stats-grid">${stats.map(s => `<article class="card stat-card"><div class="stat-top"><span>${s[0]}</span><span class="stat-icon">${s[2]}</span></div><div class="stat-value">${s[1]}</div><div class="stat-note">${s[3]}</div></article>`).join("")}</div><div class="admin-content-grid"><section class="card table-card"><div class="section-heading"><div><h3>Recent orders</h3><p class="small muted">Latest activity</p></div><button class="text-button" data-admin-page="orders">View all →</button></div>${recent.length ? `<div class="table-wrap"><table><thead><tr><th>Order</th><th>Guest</th><th>Table</th><th>Total</th><th>Status</th></tr></thead><tbody>${recent.map(o => `<tr><td>#${esc(o.number)}</td><td>${esc(o.customer.name)}</td><td>${esc(o.tableName)}</td><td>${money(o.total)}</td><td><span class="${statusClass(o.status)}">${esc(o.status)}</span></td></tr>`).join("")}</tbody></table></div>` : `<div class="empty-state" style="padding:25px"><p>No orders yet.</p></div>`}</section><section class="card table-card"><h3>Sales overview</h3><p class="small muted">Revenue by day · last 7 days</p>${renderChart()}</section><section class="card table-card" style="grid-column:1/-1"><h3>Popular dishes</h3>${popular.length ? popular.map(x => `<div class="popular-item"><img src="${safeImage(x.menu.image)}" alt=""><div><strong>${esc(x.menu.name)}</strong><small>${x.count} ordered</small></div><strong style="margin-left:auto">${money(x.menu.price)}</strong></div>`).join("") : `<p class="muted small">Menu favourites will appear here as orders come in.</p>`}</section></div>`;
@@ -205,6 +211,50 @@
     document.removeEventListener("keydown", escapeModal);
     if (modalCleanup) { modalCleanup(); modalCleanup = null; }
   }
+  function paymentModal(orderId) {
+    const order = state.orders.find(o => o.id === orderId);
+    if (!order || order.status !== "Served" || order.paymentStatus === "Paid") return;
+    if (!/^[\w.-]+@[\w.-]+$/.test(UPI_ID)) return toast("The restaurant UPI ID is not configured correctly.", true);
+    const paymentUri = `upi://pay?${new URLSearchParams({ pa: UPI_ID, pn: "Table & Thyme", am: order.total.toFixed(2), cu: "INR", tn: `Order ${order.number}` })}`;
+    const instructions = method => method === "UPI"
+      ? `<div class="payment-qr"><div id="upi-payment-qr" class="qr-canvas"></div><p>Scan this QR with any UPI app to pay <strong>${money(order.total)}</strong>.</p><p class="muted small">Payee: ${esc(UPI_ID)}</p></div>`
+      : method === "Card"
+        ? `<p class="muted">Please pay by card with restaurant staff.</p>`
+        : `<p class="muted">Please pay in cash to restaurant staff.</p>`;
+    openModal(`Pay order #${order.number}`, `<p class="muted">Amount due: <strong>${money(order.total)}</strong></p><div class="radio-options"><label class="radio-card"><input type="radio" name="payment-method" value="UPI" checked><span>Scan UPI QR<small>Pay using any UPI app.</small></span></label><label class="radio-card"><input type="radio" name="payment-method" value="Card"><span>Card<small>Pay by card with restaurant staff.</small></span></label><label class="radio-card"><input type="radio" name="payment-method" value="Cash"><span>Cash<small>Pay cash to restaurant staff.</small></span></label></div><div id="payment-instructions"></div><p class="muted small">Demo only: payment is not verified by the app. Confirm only after the restaurant receives it.</p><button class="btn btn-primary btn-block" data-confirm-payment>I've completed payment</button>`, modal => {
+      const updateInstructions = () => {
+        const method = modal.querySelector('[name="payment-method"]:checked').value;
+        const container = modal.querySelector("#payment-instructions");
+        container.innerHTML = instructions(method);
+        if (method === "UPI") {
+          const holder = modal.querySelector("#upi-payment-qr");
+          if (window.QRCode) new window.QRCode(holder, { text: paymentUri, width: 180, height: 180, correctLevel: window.QRCode.CorrectLevel.M });
+          else {
+            holder.textContent = "QR code unavailable. Please try another payment method.";
+            console.error("Could not generate the UPI payment QR because the QRCode library did not load.");
+          }
+        }
+      };
+      modal.addEventListener("change", updateInstructions);
+      modal.querySelector("[data-confirm-payment]").addEventListener("click", () => {
+        const currentOrder = state.orders.find(o => o.id === orderId);
+        if (!currentOrder || currentOrder.status !== "Served" || currentOrder.paymentStatus === "Paid") {
+          closeModal();
+          render();
+          return toast("This order is not awaiting payment.", true);
+        }
+        currentOrder.payment = modal.querySelector('[name="payment-method"]:checked').value;
+        currentOrder.paymentStatus = "Paid";
+        const table = getTable(currentOrder.tableId);
+        if (table && table.status === "Occupied") table.status = "Billing Pending";
+        save();
+        closeModal();
+        render();
+        toast("Payment marked as received.");
+      });
+      updateInstructions();
+    });
+  }
   function customize(itemId, cartKey) {
     const item = state.menu.find(m => m.id === Number(itemId));
     if (!item) return;
@@ -239,7 +289,7 @@
     const customer = { name: String(data.get("name")).trim(), phone: String(data.get("phone")).trim() };
     if (customer.name.length < 2 || !/^[0-9+() -]{7,18}$/.test(customer.phone)) return toast("Please check your name and mobile number.", true);
     const number = `${String(Date.now()).slice(-6)}`;
-    const order = { id: `ord-${Date.now()}`, number, customer, tableId: table.id, tableName: table.name, items: structuredClone(state.cart), subtotal: cartSubtotal(), tax: cartTax(), discount: cartDiscount(), total: cartTotal(), status: "Order Placed", payment: data.get("payment"), paymentStatus: "Unpaid", notes: String(data.get("notes") || "").trim(), createdAt: new Date().toISOString(), estimate: 25 };
+    const order = { id: `ord-${Date.now()}`, number, customer, tableId: table.id, tableName: table.name, items: structuredClone(state.cart), subtotal: cartSubtotal(), tax: cartTax(), discount: cartDiscount(), total: cartTotal(), status: "Order Placed", payment: "Not selected", paymentStatus: "Unpaid", notes: String(data.get("notes") || "").trim(), createdAt: new Date().toISOString(), estimate: 25 };
     state.customer = customer;
     state.restaurant.tableId = table.id;
     state.orders.push(order);
@@ -258,7 +308,6 @@
       const order = state.orders.find(o => o.id === id);
       if (!order || order.status === "Rejected" || order.status === "Served") return;
       if (order.status === "Order Placed" || steps.indexOf(order.status) < index) order.status = status;
-      if (status === "Served" && order.payment === "Online Payment") order.paymentStatus = "Paid";
       save();
       if (page === "tracking" && selectedOrderId === id) render();
     }, (index + 1) * 12000));
@@ -268,7 +317,6 @@
     if (!order) return;
     order.status = status;
     if (status === "Rejected") { const t = getTable(order.tableId); if (t) t.status = "Available"; }
-    if (status === "Served" && order.payment === "Online Payment") order.paymentStatus = "Paid";
     save(); render(); toast(`Order #${order.number}: ${status}.`);
   }
   function receipt(orderId) {
@@ -327,6 +375,7 @@
     }
     if (target.dataset.page) { navigate(target.dataset.page); return; }
     if (target.dataset.adminPage) { navigate(target.dataset.adminPage); return; }
+    if (target.dataset.payOrder) { paymentModal(target.dataset.payOrder); return; }
     if (target.hasAttribute("data-scroll-menu")) { document.querySelector(".category-row")?.scrollIntoView({ behavior: "smooth" }); return; }
     if (target.dataset.category) { category = target.dataset.category; render(); return; }
     if (target.dataset.customize) { customize(target.dataset.customize); return; }
@@ -346,7 +395,7 @@
     if (target.dataset.viewOrder) { showOrder(target.dataset.viewOrder); return; }
     if (target.dataset.receipt) { receipt(target.dataset.receipt); return; }
     if (target.hasAttribute("data-print-now")) { window.print(); return; }
-    if (target.dataset.markPaid) { const order = state.orders.find(o => o.id === target.dataset.markPaid); if (order) { order.paymentStatus = "Paid"; const table = getTable(order.tableId); if (table && table.status === "Occupied") table.status = "Billing Pending"; save(); render(); toast("Payment marked as received."); } return; }
+    if (target.dataset.markPaid) { const order = state.orders.find(o => o.id === target.dataset.markPaid); if (order) { order.paymentStatus = "Paid"; order.payment = order.payment === "Not selected" ? "Cash" : order.payment; const table = getTable(order.tableId); if (table && table.status === "Occupied") table.status = "Billing Pending"; save(); render(); toast("Payment marked as received."); } return; }
     if (target.dataset.releaseTable) { const order = state.orders.find(o => o.id === target.dataset.releaseTable); const table = order && getTable(order.tableId); if (table) { table.status = "Available"; save(); render(); toast(`Table ${table.name} released.`); } return; }
     if (target.dataset.printQr) { window.RestaurantQR?.printTable(Number(target.dataset.printQr)); return; }
     if (target.dataset.downloadQr) { window.RestaurantQR?.downloadTable(Number(target.dataset.downloadQr)); return; }
